@@ -1,0 +1,57 @@
+name: Build Electrical Guru APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Extract Stitch project
+        run: |
+          mkdir -p stitch_project
+          unzip -q stitch_electrical_guru_learning_app.zip -d stitch_project
+
+      - name: Find Android project
+        run: |
+          echo "Searching for Gradle project..."
+          GRADLEW=$(find stitch_project -type f -name gradlew | head -1)
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: Android Gradle project not found in the Stitch ZIP."
+            echo "The uploaded Stitch project may be a web project and may need Android conversion."
+            exit 1
+          fi
+          echo "Found: $GRADLEW"
+          chmod +x "$GRADLEW"
+          echo "GRADLEW=$GRADLEW" >> "$GITHUB_ENV"
+
+      - name: Build Debug APK
+        run: |
+          cd "$(dirname "$GRADLEW")"
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Find APK
+        run: |
+          find . -type f -name "*.apk" -print
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: Electrical-Guru-APK
+          path: "**/build/outputs/apk/**/*.apk"
